@@ -12,9 +12,15 @@ void execute_left_side(char** args, int *p) {
     exit(1);
   } else if (f == 0) {
     // TODO: Use close and dup to close FD 1, and reopen it by
-    // duplicating p[1].
+    // duplicating p.
+    close(1);
+    dup(p[1]);
+    close(p[0]);
+    close(p[1]);
 
     // TODO: Execute the command with the exec() system call
+    exec(args[0], args);
+    exit(1);
   }
   // Do not use wait() here as before. Parent should continue
   // in the main method.
@@ -30,49 +36,67 @@ void execute_right_side(char** args, int *p) {
     exit(1);
   } else if (f == 0) {
     // TODO: Use close and dup to close FD 0, and reopen it by
-    // duplicating p[0].
+    // duplicating p.
+    close(0);
+    dup(p[0]);
+    close(p[0]);
+    close(p[1]);
 
     // TODO: Execute the command with the exec() system call
+    exec(args[0], args);
+    exit(1);
   } else {
     // Use wait to wait for both child processes to complete separately.
+    close(p[0]);
+    close(p[1]);
+    wait(0);
+    wait(0);
   }
 }
 
 int main(int argc, char *argv[]) {
 
   // Array of pointers for storing a command and a null terminator.
-  char *args[6] = {0};
-  args[2] = 0;
-  args[5] = 0;
+  char *args[MAXARG] = {0};
+  args[0] = 0;
+  args[1] = 0;
 
   // Pipe for communication between commands.
   int p[2];
 
   // Storage for reading in data from the standard input.
-  char buf[512], *b;
+  char buf[128], *b;
   args[0] = buf;
 
   // Point b to the first character in the line.
   b = buf;
 
   while (1) {
+    args[0] = 0;
+    args[1] = 0;
     // Read characters from the standard input. When we find '\n' that
     // means one line has terminated.
     b = buf;
     // TODO: Create a new pipe here on every iteration.
+    pipe(p);
+
     fprintf(2, "\nPlease enter the first command and press enter (type 'q' to exit):\n");
+    args[0] = b;
     while (read(0, b, 1) > 0) {
       if (*b == '\n') {
         // Replace the end of line character by the string terminating
         // character.
         *b = '\0';
-        if (buf[0] == 'q')
+        if (buf[0] == 'q' && buf[1] == '\0')
           // TODO: exit with the exit() system call.
+          exit(0);
         else {
           // TODO: Execute the left-hand side.
+          execute_left_side(args, p);
 
           // TODO: Close write-end of a pipe, otherwise right-hand side child process
           // will continously wait for the data.
+          close(p[1]);
           break;
         }
       } else if (*b == ' ') {
@@ -86,20 +110,23 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(2, "\nPlease enter the second command and press enter:\n");
-    args[3] = b;
+    b++;
+    args[0] = b;
+    args[1] = 0;
     while (read(0, b, 1) > 0) {
       if (*b == '\n') {
         // Replace the end of line character by the string terminating
         // character.
         *b = '\0';
         // TODO: execute the right-hand side command.
+        execute_right_side(args, p);
         break;
       } else if (*b == ' ') {
         // Terminate the string.
         *b = '\0';
         b++;
         // Save the pointer to the next string.
-        args[4] = b;
+        args[1] = b;
       }
       else
         b++;

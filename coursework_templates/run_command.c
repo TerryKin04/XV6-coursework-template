@@ -8,8 +8,18 @@ void execute_line(char** args) {
   // is a parent or a child, and run exec() if it is a child, and
   // run wait() if it is a parent.
   // For guidance, the model solution has 9 lines of code.
+  int f = fork();
+  if (f < 0) {
+    fprintf(2, "fork failed\n");
+    exit(1);
+  } else if (f == 0) {
+    exec(args[0], args);
+    fprintf(2, "exec failed\n");
+    exit(1);
+  } else {
+    wait(0);
+  }
 }
-
 
 int main(int argc, char *argv[]) {
 
@@ -17,8 +27,11 @@ int main(int argc, char *argv[]) {
   char *args[2] = {0};
   // Fixed-size storage for reading in a line of input, and a pointer
   // to a particular character in this storage.
-  char buf[512], *b;
+  char buf[128], *b;
   // Point b to the first character in the line.
+  b = buf;
+  args[0] = buf;
+  args[1] = 0;
 
   // Read characters from the standard input. When we find '\n' that
   // means one line has terminated - execute the command.
@@ -29,6 +42,18 @@ int main(int argc, char *argv[]) {
     // been fully entered ('\n' is found in b), execute the command by calling
     // execute_line().
     // For guidance, the model solution has 10 lines of code in this loop.
+    if (*b == '\n') {
+      *b = '\0';
+      if (buf[0] == 'q' && buf[1] == '\0')
+        exit(0);
+      execute_line(args);
+      b = buf;
+      args[0] = buf;
+      args[1] = 0;
+      fprintf(2, "Please enter command and press enter (type 'q' to exit):\n");
+    } else {
+      b++;
+    }
   }
   exit(0);
 }
